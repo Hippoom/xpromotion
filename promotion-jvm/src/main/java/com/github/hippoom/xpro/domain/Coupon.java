@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 public class Coupon {
 
@@ -24,7 +25,18 @@ public class Coupon {
 	}
 
 	public Coupon addParam(String key, double value) {
-		this.params.put(key, String.valueOf(value));
+		return addParam(key, String.valueOf(value));
+	}
+
+	public Coupon add(Map<String, String> params) {
+		for (Entry<String, String> e : params.entrySet()) {
+			addParam(e.getKey(), e.getValue());
+		}
+		return this;
+	}
+
+	public Coupon addParam(String key, String value) {
+		this.params.put(key, value);
 		return this;
 	}
 

@@ -18,13 +18,13 @@ public class RestbucksAcceptanceTests {
 
 	@Before
 	public void register() {
-		app.register("1_off_for_3_spent",
+		app.registerCoupon("1_off_for_3_spent",
 				new Coupon("return ${origin} >= ${threshold}? ${off}: 0")
 						.addParam("off", 1).addParam("threshold", 3));
-		app.register("1_off_for_every_3_spent", new Coupon(
+		app.registerCoupon("1_off_for_every_3_spent", new Coupon(
 				"return ${origin}/${threshold}*${off}").addParam("off", 1)
 				.addParam("threshold", 3));
-		app.register(
+		app.registerCoupon(
 				"1_off_for_2_ordered",
 				new Coupon(
 						"def quantities = ${quantities}; " +

@@ -14,6 +14,11 @@ public class PlaceOrderCommand {
 		this.items = Arrays.asList(items);
 	}
 
+	public PlaceOrderCommand(String coupon, List<Item> items) {
+		this.coupon = coupon;
+		this.items = items;
+	}
+
 	public List<Item> getItems() {
 		return items;
 	}
