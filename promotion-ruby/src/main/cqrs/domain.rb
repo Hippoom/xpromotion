@@ -1,37 +1,61 @@
 module AggregateRoot
+  def initialize
+    @events = []
+  end
 
   attr_reader :events
-  
+
   def apply event
-    @events = [] if events.nil?
     events << event
   end
 
-  def handle event
-    handler = self.class.event_handler event
-    instance_exec(event, &handler)
+  def commit
+    @events = []
   end
 
-  private :apply, :handle
+  private :apply, :commit
 
   def self.included(clazz)
 
     clazz.class_eval do
-      @event_handlers = {}
-
       def self.create_from event
         self.new.tap do |aggregate|
           aggregate.send(:apply, event)#apply is private
         end
       end
 
-      def self.on(event_clazz, &handler)
-        @event_handlers[event_clazz] = handler
-      end
-
-      def self.event_handler event
-        @event_handlers[event.class.name.to_sym]
-      end
     end
   end
+end
+
+module Repository
+  def self.included(clazz)
+
+    clazz.class_eval do
+      def self.aggregate_root= type
+        @aggregate_root = type
+      end
+
+      def self.aggregate_root
+        return @aggregate_root
+      end
+    end
+
+  end
+
+  attr_accessor :event_bus
+
+  def load id
+    ar = self.class.aggregate_root.new
+    events(id).each do |event|
+      ar.send(:handle, event)
+    end
+    return ar
+  end
+
+  def add aggregate_root
+    event_bus.publish(aggregate_root.events)
+    aggregate_root.send(:commit)
+  end
+
 end
