@@ -7,20 +7,27 @@ module AggregateRoot
   end
 
   def handle event
-    operation = self.class.event_handlers[event.class.name.to_sym]
-    instance_exec(event, &operation)
+    handler = self.class.event_handler event
+    instance_exec(event, &handler)
   end
 
   def self.included(clazz)
+
     clazz.class_eval do
       @event_handlers = {}
 
-      def self.on event_clazz, &operation
-        @event_handlers[event_clazz] = operation
+      def self.create_from event
+        self.new.tap do |aggregate|
+          aggregate.apply event
+        end
       end
 
-      def self.event_handlers
-        @event_handlers
+      def self.on event_clazz, &handler
+        @event_handlers[event_clazz] = handler
+      end
+
+      def self.event_handler event
+        @event_handlers[event.class.name.to_sym]
       end
     end
   end
@@ -29,10 +36,11 @@ end
 class Coupon
   include AggregateRoot
 
+  on :CouponRegisteredEvent do |event|
+    @id = event.id
+  end
+
   on :CouponApprovedEvent do |event|
-    puts 'env=' + self.to_s
-    puts 'event=' + event.to_s
-    #TODO event not received
     @status = 'APPROVED'
   end
 
@@ -40,8 +48,10 @@ class Coupon
     @status = 'DISABLED'
   end
 
-  def initialize id
-    apply CouponRegisteredEvent.new(id)
+  attr_reader :id
+
+  def self.register id
+    create_from CouponRegisteredEvent.new(id)
   end
 
   def approved?
@@ -104,20 +114,25 @@ require 'minitest/autorun'
 class CouponTest < MiniTest::Unit::TestCase
   def setup
     @id = 1
-    @ar = Coupon.new(@id)
   end
 
   def test_events_collected_when_aggregate_root_created
-    assert_equal @ar.events, [CouponRegisteredEvent.new(@id)]
+    ar = Coupon.register(@id)
+
+    assert_equal ar.events, [CouponRegisteredEvent.new(@id)]
   end
 
   def test_reconsititute_aggregate_root
-    @ar.handle(CouponApprovedEvent.new(@id))
+    ar = Coupon.new
 
-    assert @ar.approved?
+    ar.handle(CouponRegisteredEvent.new(@id))
+    assert_equal @id, ar.id
 
-    @ar.handle(CouponDisabledEvent.new(@id))
-    assert @ar.disabled?
+    ar.handle(CouponApprovedEvent.new(@id))
+    assert ar.approved?
+
+    ar.handle(CouponDisabledEvent.new(@id))
+    assert ar.disabled?
 
   end
 end
