@@ -11,7 +11,7 @@ class EventBus
   def publish events
     events.each do |event|
       @event_handlers[event.class].each do |handler|
-        handler.send(:handle, event)
+        handler.send(:handle_event, event)
       end
     end
   end
@@ -20,12 +20,12 @@ end
 module EventHandling
   module Dsl
     
-    def handle event
+    def handle_event event
       handler = self.class.event_handler event
       instance_exec(event, &handler)#shift context
     end
 
-    private  :handle
+    private  :handle_event
 
     def self.included(clazz)
       clazz.class_eval do
@@ -36,7 +36,7 @@ module EventHandling
         end
 
         def self.event_handler event
-          @event_handlers[event.class.name.to_sym]
+          @event_handlers[event.class]
         end
       end
     end

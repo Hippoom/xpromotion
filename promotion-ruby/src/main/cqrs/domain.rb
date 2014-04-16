@@ -24,6 +24,13 @@ module AggregateRoot
         end
       end
 
+      def self.repository_type= type
+        @repository_type = type
+      end
+      
+      def self.repository
+        return @repository_type.new
+      end
     end
   end
 end
@@ -48,7 +55,7 @@ module Repository
   def load id
     ar = self.class.aggregate_root.new
     events(id).each do |event|
-      ar.send(:handle, event)
+      ar.send(:handle_event, event)
     end
     return ar
   end
