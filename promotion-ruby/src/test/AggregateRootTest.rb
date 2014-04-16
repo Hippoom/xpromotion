@@ -8,7 +8,7 @@ module AggregateRoot
 
   def handle event
     operation = self.class.event_handlers[event.class.name.to_sym]
-    instance_eval(&operation)
+    instance_exec(event, &operation)
   end
 
   def self.included(clazz)
@@ -118,5 +118,6 @@ class CouponTest < MiniTest::Unit::TestCase
 
     @ar.handle(CouponDisabledEvent.new(@id))
     assert @ar.disabled?
+
   end
 end
