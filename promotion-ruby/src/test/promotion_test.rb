@@ -17,6 +17,14 @@ class EventHandlerStub
   on XPromotion::Events::PromotionRegisteredEvent do |event|
     received <<  event
   end
+
+  on XPromotion::Events::PromotionApprovedEvent do |event|
+    received <<  event
+  end
+
+  on XPromotion::Events::PromotionDisabledEvent do |event|
+    received <<  event
+  end
 end
 
 class PromotionTest < MiniTest::Unit::TestCase
@@ -34,21 +42,21 @@ class PromotionTest < MiniTest::Unit::TestCase
     @command_bus = CommandBus.new
 
     @command_bus.register(XPromotion::Commands::RegisterPromotionCommand, @repo)
+    @command_bus.register(XPromotion::Commands::ApprovePromotionCommand, @repo)
+    @command_bus.register(XPromotion::Commands::DisablePromotionCommand, @repo)
   end
 
-  def test_collected_whendispatchdispatchdispatchggregate_root_created
+  def test_aggregate_root_created
 
     @command_bus.dispatch(XPromotion::Commands::RegisterPromotionCommand.new(@id))
 
     assert_equal [XPromotion::Events::PromotionRegisteredEvent.new(@id)], @event_handler_stub.received
   end
 
-  def test_reconsititute_aggregate_root
-    events = {@id=> [XPromotion::Events::PromotionRegisteredEvent.new(@id), XPromotion::Events::PromotionApprovedEvent.new(@id), XPromotion::Events::PromotionDisabledEvent.new(@id)]}
+  def test_approve_promotion
+    events = {@id=> [XPromotion::Events::PromotionRegisteredEvent.new(@id)]}
 
-    repo = XPromotion::Domain::PromotionRepository.new
-
-    class <<repo
+    class <<@repo
       def events id
         @events[id]
       end
@@ -58,12 +66,43 @@ class PromotionTest < MiniTest::Unit::TestCase
       end
     end
 
-    repo.inject(events)
+    @repo.inject(events)
 
-    ar = repo.load(@id)
+    @repo.instance_eval do
+      puts @events
+    end
 
-    assert_equal @id, ar.id
-    assert ar.disabled?
+    command = XPromotion::Commands::ApprovePromotionCommand.new(@id)
+
+    @command_bus.dispatch(command)
+
+    assert_equal [XPromotion::Events::PromotionApprovedEvent.new(@id)], @event_handler_stub.received
+  end
+
+  def test_disable_promotion
+    events = {@id=> [XPromotion::Events::PromotionRegisteredEvent.new(@id), XPromotion::Events::PromotionApprovedEvent.new(@id)]}
+
+    class <<@repo
+      def events id
+        @events[id]
+      end
+
+      def inject events
+        @events = events
+      end
+    end
+
+    @repo.inject(events)
+
+    @repo.instance_eval do
+      puts @events
+    end
+
+    command = XPromotion::Commands::DisablePromotionCommand.new(@id)
+
+    @command_bus.dispatch(command)
+
+    assert_equal [XPromotion::Events::PromotionDisabledEvent.new(@id)], @event_handler_stub.received
   end
 
 end

@@ -18,19 +18,11 @@ module AggregateRoot
   def self.included(clazz)
 
     clazz.class_eval do
-      def self.create_from event
+      def self.create_on event
         self.new.tap do |aggregate|
           aggregate.send(:apply, event)#apply is private
         end
-      end
-
-      def self.repository_type= type
-        @repository_type = type
-      end
-      
-      def self.repository
-        return @repository_type.new
-      end
+      end      
     end
   end
 end
@@ -63,6 +55,10 @@ module Repository
   def add aggregate_root
     event_bus.publish(aggregate_root.events)
     aggregate_root.send(:commit)
+  end
+
+  def store aggregate_root
+    add aggregate_root
   end
 
 end

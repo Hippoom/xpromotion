@@ -3,6 +3,7 @@ module XPromotion
     class Promotion
       include AggregateRoot
       include EventHandling::Dsl
+      include CommandHandling::Dsl
 
       on XPromotion::Events::PromotionRegisteredEvent do |event|
         @id = event.id
@@ -16,11 +17,19 @@ module XPromotion
         @status = 'DISABLED'
       end
 
-      attr_reader :id
-
-      def self.register command
-        create_from XPromotion::Events::PromotionRegisteredEvent.new(command.id)
+      from XPromotion::Commands::RegisterPromotionCommand do |command|
+        apply XPromotion::Events::PromotionRegisteredEvent.new(command.id)
       end
+
+      handle XPromotion::Commands::ApprovePromotionCommand do |command|
+        apply XPromotion::Events::PromotionApprovedEvent.new(@id)
+      end
+
+      handle XPromotion::Commands::DisablePromotionCommand do |command|
+        apply XPromotion::Events::PromotionDisabledEvent.new(@id)
+      end
+
+      identity :id
 
       def approved?
         @status == 'APPROVED'
