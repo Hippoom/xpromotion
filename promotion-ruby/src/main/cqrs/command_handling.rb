@@ -3,27 +3,7 @@ class CommandBus
     @command_handlers = {}
   end
 
-  def register command_type, repository
-    handler = Object.new
-    class <<handler
-      attr_accessor :repository
-      def handle_command command
-        handle_exists command if command.respond_to?(:identity)
-        create_new command unless command.respond_to?(:identity)
-      end
-
-      def create_new command
-        ar = repository.class.aggregate_root.create_from(command)
-        repository.add ar
-      end
-
-      def handle_exists command
-        ar  = repository.load(command.identity)
-        ar.send(:handle_command,command)
-        repository.store ar
-      end
-    end
-    handler.repository=repository
+  def register_handler(command_type, handler)
     @command_handlers[command_type] = handler
   end
 
@@ -69,8 +49,7 @@ module CommandHandling
     end
 
     module InstanceMethods
-      
-      def handle_command command 
+      def handle_command command
         handler = command_handler_for command
         instance_exec(command, &handler)
       end

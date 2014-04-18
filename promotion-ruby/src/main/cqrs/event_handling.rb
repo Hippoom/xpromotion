@@ -1,26 +1,14 @@
 class EventBus
-  def initialize
-    @event_handlers = {}
-  end
-
-  def register event_type, handler
-    @event_handlers[event_type] = [] if @event_handlers[event_type].nil?
-    @event_handlers[event_type] << handler
-  end
-
+  attr_reader :received
+  
   def publish events
-    events.each do |event|
-      @event_handlers[event.class].each do |handler|
-        handler.send(:handle_event, event)
-      end
-    end
+    @received = events
   end
 end
 
 module EventHandling
   module Dsl
     module InstanceMethods
-      
       def handle_event event
         handler = event_handler_for event
         instance_exec(event, &handler)#shift context as instance variables in blocks are bounded with class

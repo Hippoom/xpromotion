@@ -1,93 +1,91 @@
 require 'cqrs/command_handling'
-require 'cqrs/domain.rb'
-require 'cqrs/event_handling.rb'
-require 'promotion/events.rb'
-require 'promotion/commands.rb'
-require 'promotion/domain.rb'
+require 'cqrs/domain'
+require 'cqrs/event_handling'
+require 'cqrs/event_store'
+require 'promotion/events'
+require 'promotion/commands'
+require 'promotion/domain'
 require 'minitest/autorun'
 
-class EventHandlerStub
-  include EventHandling::Dsl
-
-  attr_reader :received
-  def initialize
-    @received= []
+class Fixture < MiniTest::Unit::TestCase
+  def initialize aggregate_root_type
+    @aggregate_root_type = aggregate_root_type
+    @event_bus = EventBus.new
+    @command_bus = CommandBus.new
+    @event_store = EventStore.new
+    @repository = Repository.new
+    @repository.aggregate_root_type= aggregate_root_type
+    @repository.event_bus= @event_bus
+    @repository.event_store= @event_store
   end
 
-  on XPromotion::Events::PromotionRegisteredEvent do |event|
-    received <<  event
+  def register_anomynous_handler_for command_type
+    handler = Object.new
+    class <<handler
+      attr_accessor :repository
+      def handle_command command
+        handle_exists command if command.respond_to?(:identity)
+        create_new command unless command.respond_to?(:identity)
+      end
+
+      def create_new command
+        ar = repository.aggregate_root_type.create_from(command)
+        repository.add ar
+      end
+
+      def handle_exists command
+        ar  = repository.load(command.identity)
+        ar.send(:handle_command,command)
+        repository.store ar
+      end
+    end
+    handler.repository=@repository
+    @command_bus.register_handler(command_type, handler)
   end
 
-  on XPromotion::Events::PromotionApprovedEvent do |event|
-    received <<  event
+  def _when command
+    @command_bus.dispatch(command)
   end
 
-  on XPromotion::Events::PromotionDisabledEvent do |event|
-    received <<  event
+  def _given *events
+    @event_store.append_events(@aggregate_root_type, events)
+  end
+
+  def _then_expect_events *events
+    assert_equal events, @event_bus.received
   end
 end
 
 class PromotionTest < MiniTest::Unit::TestCase
   def setup
     @id = 1
-    @event_handler_stub = EventHandlerStub.new
-    @event_bus = EventBus.new
-    @event_bus.register(XPromotion::Events::PromotionRegisteredEvent, @event_handler_stub)
-    @event_bus.register(XPromotion::Events::PromotionApprovedEvent, @event_handler_stub)
-    @event_bus.register(XPromotion::Events::PromotionDisabledEvent, @event_handler_stub)
-
-    @repo = XPromotion::Domain::PromotionRepository.new
-    @repo.event_bus= @event_bus
-
-    @command_bus = CommandBus.new
-
-    @command_bus.register(XPromotion::Commands::RegisterPromotionCommand, @repo)
-    @command_bus.register(XPromotion::Commands::ApprovePromotionCommand, @repo)
-    @command_bus.register(XPromotion::Commands::DisablePromotionCommand, @repo)
-
-    @event_store = EventStore.new
-    @repo.event_store=@event_store
+    @fixture = Fixture.new XPromotion::Domain::Promotion
+    @fixture.register_anomynous_handler_for XPromotion::Commands::RegisterPromotionCommand
+    @fixture.register_anomynous_handler_for XPromotion::Commands::ApprovePromotionCommand
+    @fixture.register_anomynous_handler_for XPromotion::Commands::DisablePromotionCommand
   end
 
   def test_aggregate_root_created
 
-    @command_bus.dispatch(XPromotion::Commands::RegisterPromotionCommand.new(@id))
+    @fixture._when(XPromotion::Commands::RegisterPromotionCommand.new(@id))
 
-    assert_equal [XPromotion::Events::PromotionRegisteredEvent.new(@id)], @event_handler_stub.received
+    @fixture._then_expect_events XPromotion::Events::PromotionRegisteredEvent.new(@id)
   end
 
   def test_approve_promotion
-    events = {@id=> [XPromotion::Events::PromotionRegisteredEvent.new(@id)]}
+    @fixture._given XPromotion::Events::PromotionRegisteredEvent.new(@id)
 
-    @event_store.inject events
+    @fixture._when XPromotion::Commands::ApprovePromotionCommand.new(@id)
 
-    command = XPromotion::Commands::ApprovePromotionCommand.new(@id)
-
-    @command_bus.dispatch(command)
-
-    assert_equal [XPromotion::Events::PromotionApprovedEvent.new(@id)], @event_handler_stub.received
-  end
-
-  class EventStore
-    def events(aggregate_root_type, id)
-      @events[id]
-    end
-
-    def inject events
-      @events = events
-    end
+    @fixture._then_expect_events XPromotion::Events::PromotionApprovedEvent.new(@id)
   end
 
   def test_disable_promotion
-    events = {@id=> [XPromotion::Events::PromotionRegisteredEvent.new(@id), XPromotion::Events::PromotionApprovedEvent.new(@id)]}
+    @fixture._given(XPromotion::Events::PromotionRegisteredEvent.new(@id), XPromotion::Events::PromotionApprovedEvent.new(@id))
 
-    @event_store.inject events
+    @fixture._when XPromotion::Commands::DisablePromotionCommand.new(@id)
 
-    command = XPromotion::Commands::DisablePromotionCommand.new(@id)
-
-    @command_bus.dispatch(command)
-
-    assert_equal [XPromotion::Events::PromotionDisabledEvent.new(@id)], @event_handler_stub.received
+    @fixture._then_expect_events XPromotion::Events::PromotionDisabledEvent.new(@id)
   end
 
 end

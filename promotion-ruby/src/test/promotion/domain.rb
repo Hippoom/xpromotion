@@ -42,11 +42,5 @@ module XPromotion
 
     end
 
-    class PromotionRepository
-      include Repository
-
-      self.aggregate_root= XPromotion::Domain::Promotion
-
-    end
   end
 end
