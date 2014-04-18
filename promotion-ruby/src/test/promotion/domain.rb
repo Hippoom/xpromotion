@@ -1,8 +1,9 @@
+require 'cqrs/event_sourcing'
+
 module XPromotion
   module Domain
     class Promotion
-      include AggregateRoot
-      include EventHandling::Dsl
+      include EventSourcedAggregateRoot
       include CommandHandling::Dsl
 
       on XPromotion::Events::PromotionRegisteredEvent do |event|
