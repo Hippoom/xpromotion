@@ -22,7 +22,7 @@ module AggregateRoot
         self.new.tap do |aggregate|
           aggregate.send(:apply, event)#apply is private
         end
-      end      
+      end
     end
   end
 end
@@ -43,10 +43,12 @@ module Repository
   end
 
   attr_accessor :event_bus
+  attr_writer :event_store
 
   def load id
-    ar = self.class.aggregate_root.new
-    events(id).each do |event|
+    aggregate_root_type = self.class.aggregate_root
+    ar = aggregate_root_type.new
+    @event_store.events(aggregate_root_type, id).each do |event|
       ar.send(:handle_event, event)
     end
     return ar

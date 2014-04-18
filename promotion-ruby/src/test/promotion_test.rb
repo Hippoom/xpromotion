@@ -44,6 +44,9 @@ class PromotionTest < MiniTest::Unit::TestCase
     @command_bus.register(XPromotion::Commands::RegisterPromotionCommand, @repo)
     @command_bus.register(XPromotion::Commands::ApprovePromotionCommand, @repo)
     @command_bus.register(XPromotion::Commands::DisablePromotionCommand, @repo)
+
+    @event_store = EventStore.new
+    @repo.event_store=@event_store
   end
 
   def test_aggregate_root_created
@@ -56,21 +59,7 @@ class PromotionTest < MiniTest::Unit::TestCase
   def test_approve_promotion
     events = {@id=> [XPromotion::Events::PromotionRegisteredEvent.new(@id)]}
 
-    class <<@repo
-      def events id
-        @events[id]
-      end
-
-      def inject events
-        @events = events
-      end
-    end
-
-    @repo.inject(events)
-
-    @repo.instance_eval do
-      puts @events
-    end
+    @event_store.inject events
 
     command = XPromotion::Commands::ApprovePromotionCommand.new(@id)
 
@@ -79,24 +68,20 @@ class PromotionTest < MiniTest::Unit::TestCase
     assert_equal [XPromotion::Events::PromotionApprovedEvent.new(@id)], @event_handler_stub.received
   end
 
+  class EventStore
+    def events(aggregate_root_type, id)
+      @events[id]
+    end
+
+    def inject events
+      @events = events
+    end
+  end
+
   def test_disable_promotion
     events = {@id=> [XPromotion::Events::PromotionRegisteredEvent.new(@id), XPromotion::Events::PromotionApprovedEvent.new(@id)]}
 
-    class <<@repo
-      def events id
-        @events[id]
-      end
-
-      def inject events
-        @events = events
-      end
-    end
-
-    @repo.inject(events)
-
-    @repo.instance_eval do
-      puts @events
-    end
+    @event_store.inject events
 
     command = XPromotion::Commands::DisablePromotionCommand.new(@id)
 
