@@ -13,39 +13,57 @@ class CommandBus
 end
 
 module CommandHandling
-  module Dsl
+  module AnonymousAggregateRootCommand
     def self.included(clazz)
       clazz.class_eval do
-        include InstanceMethods
-        def self.identity symbol
+        def self.target_aggregate_root_identity symbol
           attr_reader symbol
 
-          define_method:identity do
-            return send(symbol)
+          define_method:target_aggregate_root_identity do
+            send(symbol)
           end
         end
+      end
+    end
+  end
 
-        def self.command_handler_for command_type
-          @command_handlers[command_type]
-        end
-
-        def self.handle(command_type, &handler)
-          @command_handlers = {} if @command_handlers.nil?
-          @command_handlers[command_type] = handler
-        end
-
+  module AnonymousAggregateRootCommandHandler
+    def self.included(clazz)
+      clazz.class_eval do
+        include CommandHandler
         def self.from(command_type, &handler)
-          @command_handlers = {} if @command_handlers.nil?
-          @command_handlers[command_type] = handler
+          handle(command_type, &handler)
         end
 
         define_singleton_method :create_from do |command|
-          handler = command_handler_for(command.class)
           ar = clazz.new
-          ar.instance_exec(command, &handler)
+          ar.send(:handle_command, command)
           ar
         end
       end
+    end
+  end
+
+  module CommandHandler
+    def self.included(clazz)
+      clazz.class_eval do
+        @command_handlers = {}
+
+        extend ClassMethods
+        include InstanceMethods
+      end
+    end
+
+    module ClassMethods
+      def command_handler_for command
+        @command_handlers[command.class]
+      end
+
+      def handle(command_type, &handler)
+        @command_handlers[command_type] = handler
+      end
+
+      private :handle, :command_handler_for
     end
 
     module InstanceMethods
@@ -55,7 +73,7 @@ module CommandHandling
       end
 
       def command_handler_for command
-        self.class.send(:command_handler_for, command.class)
+        self.class.send(:command_handler_for, command)
       end
 
       private :handle_command, :command_handler_for

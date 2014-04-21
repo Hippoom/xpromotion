@@ -18,9 +18,9 @@ module XPromotion
     end
 
     class ApprovePromotionCommand
-      include CommandHandling::Dsl
+      include CommandHandling::AnonymousAggregateRootCommand
 
-      identity :id
+      target_aggregate_root_identity :id
       def initialize id
         @id = id
       end
@@ -36,9 +36,9 @@ module XPromotion
     end
 
     class DisablePromotionCommand
-      include CommandHandling::Dsl
+      include CommandHandling::AnonymousAggregateRootCommand
 
-      identity :id
+      target_aggregate_root_identity :id
       def initialize id
         @id = id
       end

@@ -7,7 +7,7 @@ class EventBus
 end
 
 module EventHandling
-  module Dsl
+  module EventHandler
     module InstanceMethods
       def handle_event event
         handler = event_handler_for event

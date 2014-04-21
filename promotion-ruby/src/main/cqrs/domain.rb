@@ -27,17 +27,12 @@ module AggregateRoot
   end
 end
 
-class Repository
+module Repository
   attr_accessor :aggregate_root_type
   attr_accessor :event_bus
-  attr_writer :event_store
   
   def load id
-    ar = aggregate_root_type.new
-    @event_store.read_events(aggregate_root_type, id).each do |event|
-      ar.send(:handle_event, event)
-    end
-    return ar
+    nil
   end
 
   def add aggregate_root
@@ -48,5 +43,6 @@ class Repository
   def store aggregate_root
     add aggregate_root
   end
-
+  
+  
 end

@@ -1,10 +1,11 @@
 require 'cqrs/event_sourcing'
+require 'cqrs/command_handling'
 
 module XPromotion
   module Domain
     class Promotion
       include EventSourcedAggregateRoot
-      include CommandHandling::Dsl
+      include CommandHandling::AnonymousAggregateRootCommandHandler
 
       on XPromotion::Events::PromotionRegisteredEvent do |event|
         @id = event.id
@@ -30,7 +31,7 @@ module XPromotion
         apply XPromotion::Events::PromotionDisabledEvent.new(@id)
       end
 
-      identity :id
+      #identity :id
 
       def approved?
         @status == 'APPROVED'

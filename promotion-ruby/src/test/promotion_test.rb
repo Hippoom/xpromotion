@@ -13,7 +13,7 @@ class Fixture < MiniTest::Unit::TestCase
     @event_bus = EventBus.new
     @command_bus = CommandBus.new
     @event_store = EventStore.new
-    @repository = Repository.new
+    @repository = EventSourcingRepository.new
     @repository.aggregate_root_type= aggregate_root_type
     @repository.event_bus= @event_bus
     @repository.event_store= @event_store
@@ -24,8 +24,8 @@ class Fixture < MiniTest::Unit::TestCase
     class <<handler
       attr_accessor :repository
       def handle_command command
-        handle_exists command if command.respond_to?(:identity)
-        create_new command unless command.respond_to?(:identity)
+        handle_exists command if command.respond_to?(:target_aggregate_root_identity)
+        create_new command unless command.respond_to?(:target_aggregate_root_identity)
       end
 
       def create_new command
@@ -34,7 +34,7 @@ class Fixture < MiniTest::Unit::TestCase
       end
 
       def handle_exists command
-        ar  = repository.load(command.identity)
+        ar  = repository.load(command.target_aggregate_root_identity)
         ar.send(:handle_command,command)
         repository.store ar
       end
