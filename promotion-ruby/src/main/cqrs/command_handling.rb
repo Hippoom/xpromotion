@@ -27,7 +27,7 @@ module CommandHandling
     end
   end
 
-  module AnonymousAggregateRootCommandHandler
+  module AggregateRootCommandHandler
     def self.included(clazz)
       clazz.class_eval do
         include CommandHandler
@@ -41,6 +41,28 @@ module CommandHandling
           ar
         end
       end
+    end
+  end
+
+  module AnonymousAggregateRootCommandHandler
+    attr_accessor :repository
+    def handle_command command
+      if command.respond_to?(:target_aggregate_root_identity) then
+        delegate_to_ar_to_handle command
+      else
+        create_new_ar_with command
+      end
+    end
+
+    def create_new_ar_with command
+      ar = repository.aggregate_root_type.create_from(command)
+      repository.add ar
+    end
+
+    def delegate_to_ar_to_handle command
+      ar  = repository.load(command.target_aggregate_root_identity)
+      ar.send(:handle_command,command)
+      repository.store ar
     end
   end
 
@@ -61,6 +83,10 @@ module CommandHandling
 
       def handle(command_type, &handler)
         @command_handlers[command_type] = handler
+      end
+      
+      def command_types
+        @command_handlers.keys
       end
 
       private :handle, :command_handler_for

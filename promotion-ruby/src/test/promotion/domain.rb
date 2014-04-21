@@ -5,7 +5,7 @@ module XPromotion
   module Domain
     class Promotion
       include EventSourcedAggregateRoot
-      include CommandHandling::AnonymousAggregateRootCommandHandler
+      include CommandHandling::AggregateRootCommandHandler
 
       on XPromotion::Events::PromotionRegisteredEvent do |event|
         @id = event.id

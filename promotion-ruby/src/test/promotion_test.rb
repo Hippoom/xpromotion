@@ -9,7 +9,7 @@ require 'minitest/autorun'
 
 class Fixture < MiniTest::Unit::TestCase
   def initialize aggregate_root_type
-    @aggregate_root_type = aggregate_root_type
+    
     @event_bus = EventBus.new
     @command_bus = CommandBus.new
     @event_store = EventStore.new
@@ -17,30 +17,24 @@ class Fixture < MiniTest::Unit::TestCase
     @repository.aggregate_root_type= aggregate_root_type
     @repository.event_bus= @event_bus
     @repository.event_store= @event_store
+    
+    handler = anomynous_aggregate_root_handler
+    handler.command_types.each do |command_type|
+      @command_bus.register_handler(command_type, handler)  
+    end
   end
 
-  def register_anomynous_handler_for command_type
+  def anomynous_aggregate_root_handler
     handler = Object.new
     class <<handler
-      attr_accessor :repository
-      def handle_command command
-        handle_exists command if command.respond_to?(:target_aggregate_root_identity)
-        create_new command unless command.respond_to?(:target_aggregate_root_identity)
-      end
-
-      def create_new command
-        ar = repository.aggregate_root_type.create_from(command)
-        repository.add ar
-      end
-
-      def handle_exists command
-        ar  = repository.load(command.target_aggregate_root_identity)
-        ar.send(:handle_command,command)
-        repository.store ar
+      include CommandHandling::AnonymousAggregateRootCommandHandler
+      
+      def command_types
+        repository.aggregate_root_type.command_types
       end
     end
     handler.repository=@repository
-    @command_bus.register_handler(command_type, handler)
+    handler
   end
 
   def _when command
@@ -60,9 +54,6 @@ class PromotionTest < MiniTest::Unit::TestCase
   def setup
     @id = 1
     @fixture = Fixture.new XPromotion::Domain::Promotion
-    @fixture.register_anomynous_handler_for XPromotion::Commands::RegisterPromotionCommand
-    @fixture.register_anomynous_handler_for XPromotion::Commands::ApprovePromotionCommand
-    @fixture.register_anomynous_handler_for XPromotion::Commands::DisablePromotionCommand
   end
 
   def test_aggregate_root_created
